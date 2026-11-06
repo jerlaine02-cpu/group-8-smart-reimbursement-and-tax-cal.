@@ -1,0 +1,585 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_Library" targetNamespace="urn:bpmn-ai-lab:library">
+  <bpmn:message id="mBookRequest" />
+  <bpmn:message id="mCorrectionRequest" />
+  <bpmn:message id="mCorrectedDetails" />
+  <bpmn:message id="mUnavailable" />
+  <bpmn:message id="mApproval" />
+  <bpmn:message id="mHandover" />
+  <bpmn:message id="mReturn" />
+  <bpmn:collaboration id="Collaboration_Library">
+    <bpmn:participant id="Pool_Student" name="Student" processRef="Process_Student" />
+    <bpmn:participant id="Pool_Library" name="Library" processRef="Process_Library" />
+    <bpmn:messageFlow id="mfRequest" name="Book request" sourceRef="stSendRequest" targetRef="liReceiveRequest" messageRef="mBookRequest" />
+    <bpmn:messageFlow id="mfCorrection" name="Correction request" sourceRef="liSendCorrection" targetRef="stReceiveCorrection" messageRef="mCorrectionRequest" />
+    <bpmn:messageFlow id="mfCorrected" name="Corrected details" sourceRef="stSendCorrected" targetRef="liReceiveCorrected" messageRef="mCorrectedDetails" />
+    <bpmn:messageFlow id="mfUnavailable" name="Unavailable notice" sourceRef="liSendUnavailable" targetRef="stReceiveUnavailable" messageRef="mUnavailable" />
+    <bpmn:messageFlow id="mfApproval" name="Approval" sourceRef="liSendApproval" targetRef="stReceiveApproval" messageRef="mApproval" />
+    <bpmn:messageFlow id="mfHandover" name="Book handover" sourceRef="liSendBook" targetRef="stReceiveBook" messageRef="mHandover" />
+    <bpmn:messageFlow id="mfReturn" name="Book return" sourceRef="stSendReturn" targetRef="liReceiveReturn" messageRef="mReturn" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Student" name="Student" isExecutable="false">
+    <bpmn:startEvent id="stStart" name="Start">
+      <bpmn:outgoing>st1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="stPrepare" name="Prepare book request">
+      <bpmn:incoming>st1</bpmn:incoming>
+      <bpmn:outgoing>st2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="stSendRequest" name="Send book request" messageRef="mBookRequest">
+      <bpmn:incoming>st2</bpmn:incoming>
+      <bpmn:outgoing>st3</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="stReceiveDecision" name="Receive library response">
+      <bpmn:incoming>st3</bpmn:incoming>
+      <bpmn:incoming>stLoop</bpmn:incoming>
+      <bpmn:outgoing>st4</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="stRoute" name="Response type?" gatewayDirection="Diverging">
+      <bpmn:incoming>st4</bpmn:incoming>
+      <bpmn:outgoing>stCorrectionPath</bpmn:outgoing>
+      <bpmn:outgoing>stUnavailablePath</bpmn:outgoing>
+      <bpmn:outgoing>stApprovedPath</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:receiveTask id="stReceiveCorrection" name="Receive correction request" messageRef="mCorrectionRequest">
+      <bpmn:incoming>stCorrectionPath</bpmn:incoming>
+      <bpmn:outgoing>st5</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:subProcess id="stCorrect" name="Correct request details">
+      <bpmn:incoming>st5</bpmn:incoming>
+      <bpmn:outgoing>stAfterCorrect</bpmn:outgoing>
+      <bpmn:standardLoopCharacteristics>
+        <bpmn:loopCondition xsi:type="bpmn:tFormalExpression">detailsNeedCorrection = true</bpmn:loopCondition>
+      </bpmn:standardLoopCharacteristics>
+      <bpmn:startEvent id="stcStart" name="Start">
+        <bpmn:outgoing>stc_f1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:userTask id="stcEdit" name="Correct request details">
+        <bpmn:incoming>stc_f1</bpmn:incoming>
+        <bpmn:outgoing>stc_f2</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="stcEnd" name="Details corrected">
+        <bpmn:incoming>stc_f2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="stc_f1" sourceRef="stcStart" targetRef="stcEdit" />
+      <bpmn:sequenceFlow id="stc_f2" sourceRef="stcEdit" targetRef="stcEnd" />
+    </bpmn:subProcess>
+    <bpmn:sendTask id="stSendCorrected" name="Resubmit corrected details" messageRef="mCorrectedDetails">
+      <bpmn:incoming>stAfterCorrect</bpmn:incoming>
+      <bpmn:outgoing>stLoop</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:sequenceFlow id="st5" sourceRef="stReceiveCorrection" targetRef="stCorrect" />
+    <bpmn:sequenceFlow id="stAfterCorrect" sourceRef="stCorrect" targetRef="stSendCorrected" />
+    <bpmn:sequenceFlow id="stLoop" sourceRef="stSendCorrected" targetRef="stReceiveDecision" />
+    <bpmn:receiveTask id="stReceiveUnavailable" name="Receive unavailable notice" messageRef="mUnavailable">
+      <bpmn:incoming>stUnavailablePath</bpmn:incoming>
+      <bpmn:outgoing>st6</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:endEvent id="stUnavailableEnd" name="Request unavailable">
+      <bpmn:incoming>st6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="st6" sourceRef="stReceiveUnavailable" targetRef="stUnavailableEnd" />
+    <bpmn:receiveTask id="stReceiveApproval" name="Receive approval" messageRef="mApproval">
+      <bpmn:incoming>stApprovedPath</bpmn:incoming>
+      <bpmn:outgoing>st7</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:receiveTask id="stReceiveBook" name="Receive book" messageRef="mHandover">
+      <bpmn:incoming>st7</bpmn:incoming>
+      <bpmn:outgoing>st8</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:userTask id="stUseBook" name="Use book">
+      <bpmn:incoming>st8</bpmn:incoming>
+      <bpmn:outgoing>st9</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="stSendReturn" name="Return book" messageRef="mReturn">
+      <bpmn:incoming>st9</bpmn:incoming>
+      <bpmn:outgoing>st10</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="stEnd" name="Loan complete">
+      <bpmn:incoming>st10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="st1" sourceRef="stStart" targetRef="stPrepare" />
+    <bpmn:sequenceFlow id="st2" sourceRef="stPrepare" targetRef="stSendRequest" />
+    <bpmn:sequenceFlow id="st3" sourceRef="stSendRequest" targetRef="stReceiveDecision" />
+    <bpmn:sequenceFlow id="st4" sourceRef="stReceiveDecision" targetRef="stRoute" />
+    <bpmn:sequenceFlow id="stCorrectionPath" name="correction" sourceRef="stRoute" targetRef="stReceiveCorrection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">responseType = "correction"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="stUnavailablePath" name="unavailable" sourceRef="stRoute" targetRef="stReceiveUnavailable">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">responseType = "unavailable"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="stApprovedPath" name="approved" sourceRef="stRoute" targetRef="stReceiveApproval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">responseType = "approved"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="st7" sourceRef="stReceiveApproval" targetRef="stReceiveBook" />
+    <bpmn:sequenceFlow id="st8" sourceRef="stReceiveBook" targetRef="stUseBook" />
+    <bpmn:sequenceFlow id="st9" sourceRef="stUseBook" targetRef="stSendReturn" />
+    <bpmn:sequenceFlow id="st10" sourceRef="stSendReturn" targetRef="stEnd" />
+  </bpmn:process>
+  <bpmn:process id="Process_Library" name="Library" isExecutable="false">
+    <bpmn:laneSet id="Library_Lanes">
+      <bpmn:lane id="Lane_Librarian" name="Librarian">
+        <bpmn:flowNodeRef>liStart</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liReceiveRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liAvailability</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liSendUnavailable</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liUnavailableEnd</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liValidate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liDetailsX</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liSendCorrection</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liReceiveCorrected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liReviewAgain</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liSendApproval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liRecordLoan</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liSendBook</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liReceiveReturn</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liCheckIn</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>liEnd</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="liStart" name="Start">
+      <bpmn:outgoing>li1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:receiveTask id="liReceiveRequest" name="Receive book request" messageRef="mBookRequest">
+      <bpmn:incoming>li1</bpmn:incoming>
+      <bpmn:outgoing>li2</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="liAvailability" name="Book available?" gatewayDirection="Diverging">
+      <bpmn:incoming>li2</bpmn:incoming>
+      <bpmn:outgoing>liNo</bpmn:outgoing>
+      <bpmn:outgoing>liYes</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="liSendUnavailable" name="Send unavailable notice" messageRef="mUnavailable">
+      <bpmn:incoming>liNo</bpmn:incoming>
+      <bpmn:outgoing>li3</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="liUnavailableEnd" name="Request unavailable">
+      <bpmn:incoming>li3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="liValidate" name="Validate request details">
+      <bpmn:incoming>liYes</bpmn:incoming>
+      <bpmn:incoming>liReviewAgainOut</bpmn:incoming>
+      <bpmn:outgoing>li4</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="liDetailsX" name="Details valid?" gatewayDirection="Diverging">
+      <bpmn:incoming>li4</bpmn:incoming>
+      <bpmn:outgoing>liNeedsCorrection</bpmn:outgoing>
+      <bpmn:outgoing>liValid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sendTask id="liSendCorrection" name="Request detail correction" messageRef="mCorrectionRequest">
+      <bpmn:incoming>liNeedsCorrection</bpmn:incoming>
+      <bpmn:outgoing>li5</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="liReceiveCorrected" name="Receive corrected details" messageRef="mCorrectedDetails">
+      <bpmn:incoming>li5</bpmn:incoming>
+      <bpmn:outgoing>liReviewAgainFlow</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:userTask id="liReviewAgain" name="Review corrected details">
+      <bpmn:incoming>liReviewAgainFlow</bpmn:incoming>
+      <bpmn:outgoing>liReviewAgainOut</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="liReviewAgainFlow" sourceRef="liReceiveCorrected" targetRef="liReviewAgain" />
+    <bpmn:sequenceFlow id="liReviewAgainOut" sourceRef="liReviewAgain" targetRef="liValidate" />
+    <bpmn:sendTask id="liSendApproval" name="Send approval" messageRef="mApproval">
+      <bpmn:incoming>li6</bpmn:incoming>
+      <bpmn:outgoing>li7</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:userTask id="liRecordLoan" name="Record loan and due date">
+      <bpmn:incoming>liValid</bpmn:incoming>
+      <bpmn:outgoing>li6</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="liSendBook" name="Hand over book" messageRef="mHandover">
+      <bpmn:incoming>li7</bpmn:incoming>
+      <bpmn:outgoing>li8</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="liReceiveReturn" name="Check in returned book" messageRef="mReturn">
+      <bpmn:incoming>li8</bpmn:incoming>
+      <bpmn:outgoing>li9</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:serviceTask id="liCheckIn" name="Complete book check-in">
+      <bpmn:incoming>li9</bpmn:incoming>
+      <bpmn:outgoing>li10</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="liEnd" name="Loan closed">
+      <bpmn:incoming>li10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="li1" sourceRef="liStart" targetRef="liReceiveRequest" />
+    <bpmn:sequenceFlow id="li2" sourceRef="liReceiveRequest" targetRef="liAvailability" />
+    <bpmn:sequenceFlow id="liNo" name="unavailable" sourceRef="liAvailability" targetRef="liSendUnavailable">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">available = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="liYes" name="available" sourceRef="liAvailability" targetRef="liValidate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">available = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="li3" sourceRef="liSendUnavailable" targetRef="liUnavailableEnd" />
+    <bpmn:sequenceFlow id="li4" sourceRef="liValidate" targetRef="liDetailsX" />
+    <bpmn:sequenceFlow id="liNeedsCorrection" name="needs correction" sourceRef="liDetailsX" targetRef="liSendCorrection">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">detailsValid = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="liValid" name="valid" sourceRef="liDetailsX" targetRef="liRecordLoan">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">detailsValid = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="li5" sourceRef="liSendCorrection" targetRef="liReceiveCorrected" />
+    <bpmn:sequenceFlow id="li6" sourceRef="liRecordLoan" targetRef="liSendApproval" />
+    <bpmn:sequenceFlow id="li7" sourceRef="liSendApproval" targetRef="liSendBook" />
+    <bpmn:sequenceFlow id="li8" sourceRef="liSendBook" targetRef="liReceiveReturn" />
+    <bpmn:sequenceFlow id="li9" sourceRef="liReceiveReturn" targetRef="liCheckIn" />
+    <bpmn:sequenceFlow id="li10" sourceRef="liCheckIn" targetRef="liEnd" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Library">
+    <bpmndi:BPMNPlane id="Plane_Library" bpmnElement="Collaboration_Library">
+      <bpmndi:BPMNShape id="shPoolStudent" bpmnElement="Pool_Student">
+        <dc:Bounds x="50" y="50" width="3710" height="390" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shPoolLibrary" bpmnElement="Pool_Library">
+        <dc:Bounds x="50" y="700" width="3710" height="470" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="shLaneLibrarian" bpmnElement="Lane_Librarian">
+        <dc:Bounds x="70" y="710" width="3670" height="450" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stStart" bpmnElement="stStart">
+        <dc:Bounds x="140" y="210" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stPrepare" bpmnElement="stPrepare">
+        <dc:Bounds x="230" y="188" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stSendRequest" bpmnElement="stSendRequest">
+        <dc:Bounds x="420" y="188" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stReceiveDecision" bpmnElement="stReceiveDecision">
+        <dc:Bounds x="650" y="188" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stRoute" bpmnElement="stRoute">
+        <dc:Bounds x="870" y="203" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stReceiveCorrection" bpmnElement="stReceiveCorrection">
+        <dc:Bounds x="1010" y="90" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stCorrect" bpmnElement="stCorrect" isExpanded="true">
+        <dc:Bounds x="1230" y="65" width="480" height="135" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stcStart" bpmnElement="stcStart">
+        <dc:Bounds x="1250" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stcEdit" bpmnElement="stcEdit">
+        <dc:Bounds x="1310" y="90" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stSendCorrected" bpmnElement="stSendCorrected">
+        <dc:Bounds x="1840" y="90" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stcEnd" bpmnElement="stcEnd">
+        <dc:Bounds x="1640" y="112" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stReceiveUnavailable" bpmnElement="stReceiveUnavailable">
+        <dc:Bounds x="1010" y="210" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stUnavailableEnd" bpmnElement="stUnavailableEnd">
+        <dc:Bounds x="1270" y="232" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stReceiveApproval" bpmnElement="stReceiveApproval">
+        <dc:Bounds x="1010" y="320" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stReceiveBook" bpmnElement="stReceiveBook">
+        <dc:Bounds x="1240" y="320" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stUseBook" bpmnElement="stUseBook">
+        <dc:Bounds x="1500" y="320" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stSendReturn" bpmnElement="stSendReturn">
+        <dc:Bounds x="1740" y="320" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_stEnd" bpmnElement="stEnd">
+        <dc:Bounds x="1940" y="342" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liStart" bpmnElement="liStart">
+        <dc:Bounds x="140" y="900" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liReceiveRequest" bpmnElement="liReceiveRequest">
+        <dc:Bounds x="230" y="878" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liAvailability" bpmnElement="liAvailability">
+        <dc:Bounds x="450" y="893" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liSendUnavailable" bpmnElement="liSendUnavailable">
+        <dc:Bounds x="600" y="750" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liUnavailableEnd" bpmnElement="liUnavailableEnd">
+        <dc:Bounds x="820" y="772" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liValidate" bpmnElement="liValidate">
+        <dc:Bounds x="600" y="895" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liDetailsX" bpmnElement="liDetailsX">
+        <dc:Bounds x="820" y="910" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liSendCorrection" bpmnElement="liSendCorrection">
+        <dc:Bounds x="970" y="750" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liReceiveCorrected" bpmnElement="liReceiveCorrected">
+        <dc:Bounds x="1190" y="750" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liReviewAgain" bpmnElement="liReviewAgain">
+        <dc:Bounds x="1400" y="750" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liSendApproval" bpmnElement="liSendApproval">
+        <dc:Bounds x="1190" y="895" width="145" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liRecordLoan" bpmnElement="liRecordLoan">
+        <dc:Bounds x="970" y="895" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liSendBook" bpmnElement="liSendBook">
+        <dc:Bounds x="1420" y="895" width="145" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liReceiveReturn" bpmnElement="liReceiveReturn">
+        <dc:Bounds x="1640" y="895" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liCheckIn" bpmnElement="liCheckIn">
+        <dc:Bounds x="1880" y="895" width="155" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_liEnd" bpmnElement="liEnd">
+        <dc:Bounds x="2110" y="917" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="ed_st1" bpmnElement="st1">
+        <di:waypoint x="176" y="228" />
+        <di:waypoint x="230" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st2" bpmnElement="st2">
+        <di:waypoint x="360" y="228" />
+        <di:waypoint x="420" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st3" bpmnElement="st3">
+        <di:waypoint x="550" y="228" />
+        <di:waypoint x="650" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st4" bpmnElement="st4">
+        <di:waypoint x="800" y="228" />
+        <di:waypoint x="870" y="228" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_stCorrectionPath" bpmnElement="stCorrectionPath">
+        <di:waypoint x="895" y="203" />
+        <di:waypoint x="895" y="130" />
+        <di:waypoint x="1010" y="130" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="925" y="95" width="145" height="30" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_stUnavailablePath" bpmnElement="stUnavailablePath">
+        <di:waypoint x="895" y="228" />
+        <di:waypoint x="960" y="228" />
+        <di:waypoint x="1010" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="925" y="205" width="165" height="30" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_stApprovedPath" bpmnElement="stApprovedPath">
+        <di:waypoint x="895" y="253" />
+        <di:waypoint x="895" y="360" />
+        <di:waypoint x="1010" y="360" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="925" y="335" width="145" height="30" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st5" bpmnElement="st5">
+        <di:waypoint x="1160" y="130" />
+        <di:waypoint x="1230" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_stAfterCorrect" bpmnElement="stAfterCorrect">
+        <di:waypoint x="1710" y="132" />
+        <di:waypoint x="1840" y="132" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_stLoop" bpmnElement="stLoop">
+        <di:waypoint x="1990" y="132" />
+        <di:waypoint x="2030" y="132" />
+        <di:waypoint x="2030" y="45" />
+        <di:waypoint x="725" y="45" />
+        <di:waypoint x="725" y="188" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_stc1" bpmnElement="stc_f1">
+        <di:waypoint x="1286" y="130" />
+        <di:waypoint x="1310" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_stc2" bpmnElement="stc_f2">
+        <di:waypoint x="1430" y="130" />
+        <di:waypoint x="1640" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st6" bpmnElement="st6">
+        <di:waypoint x="1160" y="250" />
+        <di:waypoint x="1270" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st7" bpmnElement="st7">
+        <di:waypoint x="1160" y="360" />
+        <di:waypoint x="1240" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st8" bpmnElement="st8">
+        <di:waypoint x="1390" y="360" />
+        <di:waypoint x="1500" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st9" bpmnElement="st9">
+        <di:waypoint x="1630" y="360" />
+        <di:waypoint x="1740" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_st10" bpmnElement="st10">
+        <di:waypoint x="1870" y="360" />
+        <di:waypoint x="1940" y="360" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li1" bpmnElement="li1">
+        <di:waypoint x="176" y="918" />
+        <di:waypoint x="230" y="918" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li2" bpmnElement="li2">
+        <di:waypoint x="380" y="918" />
+        <di:waypoint x="450" y="918" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_liNo" bpmnElement="liNo">
+        <di:waypoint x="475" y="893" />
+        <di:waypoint x="475" y="790" />
+        <di:waypoint x="600" y="790" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="500" y="810" width="115" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_liYes" bpmnElement="liYes">
+        <di:waypoint x="500" y="918" />
+        <di:waypoint x="600" y="935" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="510" y="950" width="105" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li3" bpmnElement="li3">
+        <di:waypoint x="750" y="790" />
+        <di:waypoint x="820" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li4" bpmnElement="li4">
+        <di:waypoint x="750" y="935" />
+        <di:waypoint x="820" y="935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_liNeedsCorrection" bpmnElement="liNeedsCorrection">
+        <di:waypoint x="845" y="910" />
+        <di:waypoint x="845" y="790" />
+        <di:waypoint x="970" y="790" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="875" y="825" width="150" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_liValid" bpmnElement="liValid">
+        <di:waypoint x="870" y="935" />
+        <di:waypoint x="970" y="935" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="875" y="950" width="120" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li5" bpmnElement="li5">
+        <di:waypoint x="1130" y="790" />
+        <di:waypoint x="1190" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_liReviewAgainFlow" bpmnElement="liReviewAgainFlow">
+        <di:waypoint x="1350" y="790" />
+        <di:waypoint x="1400" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_liReviewAgainOut" bpmnElement="liReviewAgainOut">
+        <di:waypoint x="1540" y="790" />
+        <di:waypoint x="1580" y="790" />
+        <di:waypoint x="1580" y="1010" />
+        <di:waypoint x="675" y="1010" />
+        <di:waypoint x="675" y="975" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li6" bpmnElement="li6">
+        <di:waypoint x="1115" y="935" />
+        <di:waypoint x="1190" y="935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li7" bpmnElement="li7">
+        <di:waypoint x="1350" y="935" />
+        <di:waypoint x="1420" y="935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li8" bpmnElement="li8">
+        <di:waypoint x="1565" y="935" />
+        <di:waypoint x="1640" y="935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li9" bpmnElement="li9">
+        <di:waypoint x="1800" y="935" />
+        <di:waypoint x="1880" y="935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_li10" bpmnElement="li10">
+        <di:waypoint x="2035" y="935" />
+        <di:waypoint x="2110" y="935" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_mfRequest" bpmnElement="mfRequest">
+        <di:waypoint x="485" y="268" />
+        <di:waypoint x="485" y="440" />
+        <di:waypoint x="305" y="440" />
+        <di:waypoint x="305" y="878" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="340" y="450" width="135" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_mfCorrection" bpmnElement="mfCorrection">
+        <di:waypoint x="1050" y="750" />
+        <di:waypoint x="1050" y="700" />
+        <di:waypoint x="1050" y="680" />
+        <di:waypoint x="1200" y="680" />
+        <di:waypoint x="1200" y="90" />
+        <di:waypoint x="1160" y="90" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1060" y="650" width="150" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_mfCorrected" bpmnElement="mfCorrected">
+        <di:waypoint x="1915" y="170" />
+        <di:waypoint x="1915" y="440" />
+        <di:waypoint x="1915" y="480" />
+        <di:waypoint x="1270" y="480" />
+        <di:waypoint x="1270" y="750" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1450" y="450" width="145" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_mfUnavailable" bpmnElement="mfUnavailable">
+        <di:waypoint x="675" y="750" />
+        <di:waypoint x="675" y="700" />
+        <di:waypoint x="675" y="640" />
+        <di:waypoint x="1200" y="640" />
+        <di:waypoint x="1200" y="210" />
+        <di:waypoint x="1160" y="210" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="800" y="615" width="145" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_mfApproval" bpmnElement="mfApproval">
+        <di:waypoint x="1262" y="895" />
+        <di:waypoint x="1262" y="850" />
+        <di:waypoint x="1360" y="850" />
+        <di:waypoint x="1360" y="700" />
+        <di:waypoint x="1360" y="660" />
+        <di:waypoint x="1200" y="660" />
+        <di:waypoint x="1200" y="320" />
+        <di:waypoint x="1160" y="320" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1210" y="635" width="100" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_mfHandover" bpmnElement="mfHandover">
+        <di:waypoint x="1492" y="895" />
+        <di:waypoint x="1492" y="850" />
+        <di:waypoint x="1580" y="850" />
+        <di:waypoint x="1580" y="700" />
+        <di:waypoint x="1580" y="620" />
+        <di:waypoint x="1315" y="620" />
+        <di:waypoint x="1315" y="320" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1370" y="595" width="135" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="ed_mfReturn" bpmnElement="mfReturn">
+        <di:waypoint x="1805" y="400" />
+        <di:waypoint x="1805" y="440" />
+        <di:waypoint x="1805" y="480" />
+        <di:waypoint x="1720" y="480" />
+        <di:waypoint x="1720" y="700" />
+        <di:waypoint x="1720" y="895" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1740" y="465" width="110" height="24" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

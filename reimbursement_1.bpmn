@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_Reimbursement" targetNamespace="https://example.com/bpmn/reimbursement" exporter="bpmn-js (https://demo.bpmn.io)" exporterVersion="18.31.1">
+  <bpmn:message id="Msg_Request" name="Request Submitted" />
+  <bpmn:message id="Msg_Return" name="Rejection / Return" />
+  <bpmn:message id="Msg_Approval" name="Approval" />
+  <bpmn:message id="Msg_Payment" name="Payment Processing" />
+  <bpmn:message id="Msg_Status" name="Status Update / Notification" />
+  <bpmn:collaboration id="Collaboration_Reimbursement">
+    <bpmn:participant id="Pool_Portal" name="Reimbursement Portal Users" processRef="Process_Portal" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Portal" name="Reimbursement Portal Users" isExecutable="false">
+    <bpmn:laneSet id="Portal_Lanes">
+      <bpmn:lane id="Lane_Teller" name="Branch Manager / Teller (Processor &#38; Payer)">
+        <bpmn:flowNodeRef>Teller_Pay</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Teller_Notify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Portal_End</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Manager" name="Area Manager (Approver)">
+        <bpmn:flowNodeRef>Mgr_Review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Mgr_GW</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Mgr_Approve</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Mgr_Return</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Employee" name="Employee (Requestor)">
+        <bpmn:flowNodeRef>Emp_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Emp_Submit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Emp_Status</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Emp_Correction</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Sub_Documents</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Emp_Start" name="Start">
+      <bpmn:outgoing>P1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Emp_Submit" name="Submit Reimbursement Request">
+      <bpmn:incoming>P1</bpmn:incoming>
+      <bpmn:outgoing>P2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:subProcess id="Sub_Documents" name="Provide Required Documents">
+      <bpmn:standardLoopCharacteristics>
+        <bpmn:loopCondition xsi:type="bpmn:tFormalExpression">documentsIncomplete = true</bpmn:loopCondition>
+      </bpmn:standardLoopCharacteristics>
+      <bpmn:startEvent id="Doc_Start" name="Start">
+        <bpmn:outgoing>D1</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:userTask id="Doc_Upload" name="Upload or Correct Required Documents">
+        <bpmn:incoming>D1</bpmn:incoming>
+        <bpmn:outgoing>D2</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:endEvent id="Doc_End" name="Documents Ready">
+        <bpmn:incoming>D2</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="D1" sourceRef="Doc_Start" targetRef="Doc_Upload" />
+      <bpmn:sequenceFlow id="D2" sourceRef="Doc_Upload" targetRef="Doc_End" />
+    </bpmn:subProcess>
+    <bpmn:receiveTask id="Emp_Status" name="View Approval Status">
+      <bpmn:incoming>P3</bpmn:incoming>
+      <bpmn:outgoing>P4</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:userTask id="Mgr_Review" name="Review Reimbursement Request">
+      <bpmn:incoming>P4</bpmn:incoming>
+      <bpmn:outgoing>P5</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Mgr_GW" name="Approve?">
+      <bpmn:incoming>P5</bpmn:incoming>
+      <bpmn:outgoing>P6</bpmn:outgoing>
+      <bpmn:outgoing>P7</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Mgr_Approve" name="Approve Request">
+      <bpmn:incoming>P6</bpmn:incoming>
+      <bpmn:outgoing>P8</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Mgr_Return" name="Reject / Return with Comments">
+      <bpmn:incoming>P7</bpmn:incoming>
+      <bpmn:outgoing>P9</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Emp_Correction" name="Correct / Resend Documents">
+      <bpmn:incoming>P9</bpmn:incoming>
+      <bpmn:outgoing>P11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Teller_Pay" name="Process Payment &#38; Disburse Funds">
+      <bpmn:incoming>P8</bpmn:incoming>
+      <bpmn:outgoing>P12</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sendTask id="Teller_Notify" name="Notify Employee (Completed)">
+      <bpmn:incoming>P12</bpmn:incoming>
+      <bpmn:outgoing>P13</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:endEvent id="Portal_End" name="End">
+      <bpmn:incoming>P13</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="P1" sourceRef="Emp_Start" targetRef="Emp_Submit" />
+    <bpmn:sequenceFlow id="P2" sourceRef="Emp_Submit" targetRef="Sub_Documents" />
+    <bpmn:sequenceFlow id="P11" sourceRef="Emp_Correction" targetRef="Sub_Documents" />
+    <bpmn:sequenceFlow id="P3" sourceRef="Sub_Documents" targetRef="Emp_Status" />
+    <bpmn:sequenceFlow id="P4" sourceRef="Emp_Status" targetRef="Mgr_Review" />
+    <bpmn:sequenceFlow id="P5" sourceRef="Mgr_Review" targetRef="Mgr_GW" />
+    <bpmn:sequenceFlow id="P6" name="Yes" sourceRef="Mgr_GW" targetRef="Mgr_Approve">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">approved = true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="P7" name="No" sourceRef="Mgr_GW" targetRef="Mgr_Return">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">approved = false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="P8" sourceRef="Mgr_Approve" targetRef="Teller_Pay" />
+    <bpmn:sequenceFlow id="P9" sourceRef="Mgr_Return" targetRef="Emp_Correction" />
+    <bpmn:sequenceFlow id="P12" sourceRef="Teller_Pay" targetRef="Teller_Notify" />
+    <bpmn:sequenceFlow id="P13" sourceRef="Teller_Notify" targetRef="Portal_End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Reimbursement">
+    <bpmndi:BPMNPlane id="Plane_Reimbursement" bpmnElement="Collaboration_Reimbursement">
+      <bpmndi:BPMNShape id="Shape_Pool_Portal" bpmnElement="Pool_Portal" isHorizontal="true">
+        <dc:Bounds x="150" y="60" width="2300" height="610" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Teller" bpmnElement="Lane_Teller" isHorizontal="true">
+        <dc:Bounds x="180" y="490" width="2270" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Manager" bpmnElement="Lane_Manager" isHorizontal="true">
+        <dc:Bounds x="180" y="310" width="2270" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Employee" bpmnElement="Lane_Employee" isHorizontal="true">
+        <dc:Bounds x="180" y="60" width="2270" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Emp_Start" bpmnElement="Emp_Start">
+        <dc:Bounds x="220" y="167" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="226" y="203" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Emp_Submit" bpmnElement="Emp_Submit">
+        <dc:Bounds x="300" y="145" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Sub_Documents" bpmnElement="Sub_Documents">
+        <dc:Bounds x="500" y="135" width="180" height="100" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Emp_Status" bpmnElement="Emp_Status">
+        <dc:Bounds x="760" y="145" width="130" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Mgr_Review" bpmnElement="Mgr_Review">
+        <dc:Bounds x="940" y="360" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Mgr_GW" bpmnElement="Mgr_GW" isMarkerVisible="true">
+        <dc:Bounds x="1160" y="377" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1161" y="427" width="48" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Mgr_Approve" bpmnElement="Mgr_Approve">
+        <dc:Bounds x="1280" y="345" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Mgr_Return" bpmnElement="Mgr_Return">
+        <dc:Bounds x="1280" y="415" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Emp_Correction" bpmnElement="Emp_Correction">
+        <dc:Bounds x="1520" y="145" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Teller_Pay" bpmnElement="Teller_Pay">
+        <dc:Bounds x="1520" y="535" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Teller_Notify" bpmnElement="Teller_Notify">
+        <dc:Bounds x="1820" y="535" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Portal_End" bpmnElement="Portal_End">
+        <dc:Bounds x="2070" y="557" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2078" y="593" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_P1" bpmnElement="P1">
+        <di:waypoint x="256" y="185" />
+        <di:waypoint x="300" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P2" bpmnElement="P2">
+        <di:waypoint x="430" y="185" />
+        <di:waypoint x="500" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P3" bpmnElement="P3">
+        <di:waypoint x="680" y="185" />
+        <di:waypoint x="760" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P4" bpmnElement="P4">
+        <di:waypoint x="890" y="185" />
+        <di:waypoint x="915" y="185" />
+        <di:waypoint x="915" y="400" />
+        <di:waypoint x="940" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P5" bpmnElement="P5">
+        <di:waypoint x="1090" y="400" />
+        <di:waypoint x="1160" y="402" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P6" bpmnElement="P6">
+        <di:waypoint x="1210" y="390" />
+        <di:waypoint x="1240" y="390" />
+        <di:waypoint x="1240" y="385" />
+        <di:waypoint x="1280" y="385" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1246" y="378" width="18" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P7" bpmnElement="P7">
+        <di:waypoint x="1210" y="415" />
+        <di:waypoint x="1240" y="415" />
+        <di:waypoint x="1280" y="455" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1218" y="390" width="15" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P8" bpmnElement="P8">
+        <di:waypoint x="1420" y="385" />
+        <di:waypoint x="1460" y="385" />
+        <di:waypoint x="1460" y="575" />
+        <di:waypoint x="1520" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P9" bpmnElement="P9">
+        <di:waypoint x="1440" y="455" />
+        <di:waypoint x="1480" y="455" />
+        <di:waypoint x="1480" y="185" />
+        <di:waypoint x="1520" y="185" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P11" bpmnElement="P11">
+        <di:waypoint x="1600" y="225" />
+        <di:waypoint x="1600" y="270" />
+        <di:waypoint x="590" y="270" />
+        <di:waypoint x="590" y="235" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P12" bpmnElement="P12">
+        <di:waypoint x="1700" y="575" />
+        <di:waypoint x="1820" y="575" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_P13" bpmnElement="P13">
+        <di:waypoint x="1980" y="575" />
+        <di:waypoint x="2070" y="575" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+  <bpmndi:BPMNDiagram>
+    <bpmndi:BPMNPlane bpmnElement="Sub_Documents">
+      <bpmndi:BPMNShape id="Shape_Doc_Start" bpmnElement="Doc_Start">
+        <dc:Bounds x="180" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Doc_Upload" bpmnElement="Doc_Upload">
+        <dc:Bounds x="225" y="160" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Doc_End" bpmnElement="Doc_End">
+        <dc:Bounds x="375" y="182" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_D1" bpmnElement="D1">
+        <di:waypoint x="216" y="200" />
+        <di:waypoint x="225" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_D2" bpmnElement="D2">
+        <di:waypoint x="345" y="200" />
+        <di:waypoint x="375" y="200" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
